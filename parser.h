@@ -3,7 +3,6 @@
 #include "command.h"
 #include "errors.h"
 #include "operator.h"
-
 #include <expected>
 #include <format>
 #include <queue>
@@ -117,5 +116,6 @@ public:
 class Parser
 {
 public:
-  static std::queue<Command> parse_commands(std::string_view command_line);
+  static std::expected<std::queue<Command>, SyntaxError>
+  parse_commands(std::string_view command_line);
 };
