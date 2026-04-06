@@ -17,6 +17,8 @@ const vector<char *> Command::get_constant_arguments() const
     arguments_as_c_strings.push_back(const_cast<char *>(program.data()));
   }
 
+  if (arguments_as_c_strings.back() != nullptr) arguments_as_c_strings.push_back(nullptr);
+
   return arguments_as_c_strings;
 }
 
@@ -65,3 +67,15 @@ void Command::chain_on_success(std::shared_ptr<Command> command)
 }
 
 void Command::turn_into_background_task() { this->is_background_task_ = true; }
+
+const std::vector<std::string> &Command::get_arguments() const { return arguments_; }
+
+std::shared_ptr<Command> Command::get_chained_command_ptr_internal_failure() const
+{
+  return failure_chained_command.value_or(nullptr);
+}
+
+std::shared_ptr<Command> Command::get_chained_command_ptr_internal_success() const
+{
+  return success_chained_command.value_or(nullptr);
+}
