@@ -7,6 +7,7 @@
 #include "parser.h"
 #include <iostream>
 #include <print>
+#include <string_view>
 #include <vector>
 
 /**
@@ -15,48 +16,18 @@
  */
 void spawn_background_task() {}
 
-int main()
+bool is_debug(int args_len, char *args[])
 {
+  if (args_len <= 1) return false;
 
-  while (true)
-  {
-    auto line = std::string();
-    getline(std::cin, line);
+  const auto flag = std::string_view(args[1]);
+  const auto is_debug_flag = flag == "-d" || flag == "--debug" || flag == "-D";
+  return is_debug_flag;
+}
 
-    auto tokens_result = Lexer().tokenize(line);
-
-    if (!tokens_result)
-    {
-      std::println("{}", tokens_result.error().what());
-      exit(1);
-    }
-
-    auto tokens = *tokens_result;
-
-    while (tokens.size())
-    {
-      auto &token = tokens.front();
-
-      std::visit(
-          match{
-              [](const std::vector<std::string> &args)
-              {
-                std::println("Vetor de argumentos:");
-                for (auto &arg : args)
-                {
-                  println("\t{}", arg);
-                }
-              },
-              [](const Operator::Value op) { std::println("Operador({})", op); },
-              [](const Separator::Value separator) { std::println("Separador({})", separator); },
-              [](const Parenthesis::Value parenthesis)
-              { std::println("Parenthesis({})", parenthesis); },
-          },
-          token);
-
-      tokens.pop();
-    }
-  }
+int main(int args_len, char *args[])
+{
+  if (is_debug(args_len, args)) debug_loop();
 
   return 0;
 }

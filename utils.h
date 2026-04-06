@@ -5,3 +5,5 @@ template <class... Ts> struct match : Ts...
 {
   using Ts::operator()...;
 };
+
+void debug_loop();

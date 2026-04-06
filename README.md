@@ -1,5 +1,14 @@
 # Mini Shell
 
+## Executando
+Executar o programa com a flag `-d` roda o modo de debug — dado um comando, será exebido o
+resultado da análise léxica e a fila de comandos resultante.
+
+Em modo normal, todo comando digitado será transformado numa fila de comandos, e cada um
+será executado de acordo com os metadados do comando. Comandos filhos de outros comandos
+têm preferência sobre os próximos comandos da fila de execução. Essa é uma abordagem híbrida
+entre uma fila simples e uma AST completa.
+
 ## Estrutura
 O programa lida com três tipos de dados principais:
 - Argumentos - são strings que formam um comando;
