@@ -52,8 +52,7 @@ const optional<reference_wrapper<Command>> Command::get_chained_command() const
 
 void Command::mark_as_finished(bool successfully)
 {
-  if (successfully) this->state_ = Command::State::SuccessfullyTerminated;
-  this->state_ = Command::State::Failed;
+  this->status_ = successfully ? Command::Status::SuccessfullyTerminated : Command::Status::Failed;
 }
 
 void Command::chain_on_failure(std::shared_ptr<Command> command)
