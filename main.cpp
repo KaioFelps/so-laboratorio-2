@@ -10,12 +10,6 @@
 #include <string_view>
 #include <vector>
 
-/**
- * Inicia o processo em segundo plano e imprime sua posição nas tarefas a serem executadas em plano
- * de fundo e seu PID no terminal.
- */
-void spawn_background_task() {}
-
 bool is_debug(int args_len, char *args[])
 {
   if (args_len <= 1) return false;
@@ -27,7 +21,12 @@ bool is_debug(int args_len, char *args[])
 
 int main(int args_len, char *args[])
 {
-  if (is_debug(args_len, args)) debug_loop();
+  if (is_debug(args_len, args))
+  {
+    debug_loop();
+    return 0;
+  }
 
+  loop();
   return 0;
 }

@@ -7,3 +7,5 @@ template <class... Ts> struct match : Ts...
 };
 
 void debug_loop();
+
+void loop();
