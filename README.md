@@ -40,3 +40,9 @@ executável do shell em modo standalone — executa somente esse único comando 
 Para as finalidades deste laboratório, o agrupamento por parênteses serve apenas para viabilizar
 comandos como `(c1 &) && c2`. Dessa forma, o comando `(c1 && c2)&` é equivalente a
 `(c1 &) && (c2 &)`.
+
+### Distributividade
+O comando `(c1 && c2) && c3` deveria executar `c3` diante do sucesso de qualquer um deles, isso
+é, deveria gerar a seguinte fila de execução:
+$`C(c1, F, \emptyset, C(c3, F, \emptyset, \emptyset)),\ C(c2, F, \emptyset, C(c3, F, \emptyset, \emptyset))`$.
+No entanto, a propriedade distributiva ainda não foi implementada.
