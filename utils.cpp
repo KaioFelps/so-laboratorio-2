@@ -73,6 +73,13 @@ static bool block_on_proc(pid_t pid)
   return successfully_terminated;
 }
 
+static void exit_with_exec_errno()
+{
+  if (errno == ENOENT) exit(127);
+  if (errno == EACCES) exit(126);
+  exit(1);
+}
+
 pid_t spawn_task_async(Command &command)
 {
   const auto child_pid = fork();
@@ -85,7 +92,7 @@ pid_t spawn_task_async(Command &command)
     // interno falhar
     const auto command_str = command.get_command_string();
     println(stderr, "Não foi possível executar o comando `{}` em segundo plano", command_str);
-    exit(1);
+    exit_with_exec_errno();
   }
 
   return child_pid;
@@ -102,7 +109,7 @@ pid_t spawn_task_blocking(Command &command)
     // Código caso não seja possível executar o comando no fork, só é alcançado se o `execvp`
     // interno falhar
     println(stderr, "Não foi possível executar o comando `{}`", command.get_command_string());
-    exit(1);
+    exit_with_exec_errno();
   }
 
   const auto has_finished_successfully = block_on_proc(child_pid);
@@ -124,9 +131,11 @@ clean_finished_background_tasks(unordered_map<pid_t, pair<size_t, string_view>> 
     if (!has_finished) continue;
 
     const auto &[process_index, command_string] = data;
+    const auto exit_status = WEXITSTATUS(status);
+    auto info =
+        exit_status == 0 ? "Concluído" : format("Fim da execução com status {}", exit_status);
 
-    string info = status == 0 ? "Concluído" : "Fim da execução com status " + status;
-    println("[{}]+\t{:<30}\t{}", process_index, info, command_string);
+    println("[{}]+\t{:<32}\t{}", process_index, info, command_string);
 
     pids_to_delete.push_back(process_id);
   }
