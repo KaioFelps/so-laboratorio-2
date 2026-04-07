@@ -1,27 +1,19 @@
 #include "parser.h"
 #include <memory>
 
-struct RawEntry
+RawEntry RawEntry::make_command(std::vector<std::string> argument)
 {
-  std::optional<std::vector<std::string>> args;
-  std::optional<std::vector<RawEntry>> group;
+  RawEntry entry;
+  entry.args = std::move(argument);
+  return entry;
+}
 
-  std::optional<Token> connector;
-
-  static RawEntry make_command(std::vector<std::string> a)
-  {
-    RawEntry e;
-    e.args = std::move(a);
-    return e;
-  }
-
-  static RawEntry make_group(std::vector<RawEntry> g)
-  {
-    RawEntry e;
-    e.group = std::move(g);
-    return e;
-  }
-};
+RawEntry RawEntry::make_group(std::vector<RawEntry> group)
+{
+  RawEntry entry;
+  entry.group = std::move(group);
+  return entry;
+}
 
 static std::expected<std::vector<RawEntry>, SyntaxError> flatten(std::queue<Token> &tokens,
                                                                  bool inside_parentheses);
@@ -32,14 +24,16 @@ build_queue(const std::vector<RawEntry> &entries, std::size_t from = 0);
 static std::optional<Token> collect_connector(std::queue<Token> &tokens)
 {
   if (tokens.empty()) return std::nullopt;
-  const Token &next = tokens.front();
-  if (std::holds_alternative<Operator::Value>(next) ||
-      std::holds_alternative<Separator::Value>(next))
+  const Token &next_token = tokens.front();
+
+  if (std::holds_alternative<Operator::Value>(next_token) ||
+      std::holds_alternative<Separator::Value>(next_token))
   {
-    Token connector = next;
+    auto connector = next_token;
     tokens.pop();
     return connector;
   }
+
   return std::nullopt;
 }
 
@@ -97,6 +91,60 @@ static std::expected<std::vector<RawEntry>, SyntaxError> flatten(std::queue<Toke
     return std::unexpected(SyntaxError("Erro de sintaxe: um grupo de parênteses não foi fechado"));
 
   return entries;
+}
+
+static void turn_command_tree_into_bg_task(Command &cmd)
+{
+  auto success_command = cmd.get_success_chained_command();
+  if (!success_command)
+  {
+    cmd.turn_into_background_task();
+    return;
+  }
+
+  turn_command_tree_into_bg_task(**success_command);
+
+  if (auto failure_command = cmd.get_failure_chained_command())
+  {
+    turn_command_tree_into_bg_task(**failure_command);
+  }
+}
+
+static void apply_operator_to_command_tree(Command &cmd, Operator::Value op,
+                                           const std::shared_ptr<Command> &target)
+{
+  auto success_command = cmd.get_success_chained_command();
+  auto failure_command = cmd.get_failure_chained_command();
+
+  if (op == Operator::ExecuteOnSuccess)
+  {
+    if (success_command)
+    {
+      apply_operator_to_command_tree(**success_command, op, target);
+    }
+    else
+    {
+      cmd.chain_on_success(target);
+    }
+
+    if (failure_command)
+    {
+      apply_operator_to_command_tree(**failure_command, op, target);
+    }
+
+    return;
+  }
+
+  if (failure_command)
+  {
+    apply_operator_to_command_tree(**failure_command, op, target);
+  }
+  else
+  {
+    cmd.chain_on_failure(target);
+  }
+
+  if (success_command) apply_operator_to_command_tree(**success_command, op, target);
 }
 
 static std::expected<std::pair<Command, std::queue<Command>>, SyntaxError>
@@ -158,10 +206,31 @@ build_queue(const std::vector<RawEntry> &entries, std::size_t from)
 
     if (auto *sep = std::get_if<Separator::Value>(&connector))
     {
-      if (*sep == Separator::Background) cmd.turn_into_background_task();
+      if (*sep == Separator::Background)
+      {
+        turn_command_tree_into_bg_task(cmd);
 
-      result.push(std::move(cmd));
-      flush_extras();
+        std::queue<Command> new_extras;
+        while (!extras.empty())
+        {
+          Command extra = extras.front();
+          extras.pop();
+          turn_command_tree_into_bg_task(extra);
+          new_extras.push(std::move(extra));
+        }
+
+        result.push(std::move(cmd));
+        while (!new_extras.empty())
+        {
+          result.push(new_extras.front());
+          new_extras.pop();
+        }
+      }
+      else
+      {
+        result.push(std::move(cmd));
+        flush_extras();
+      }
       ++i;
       continue;
     }
@@ -185,17 +254,23 @@ build_queue(const std::vector<RawEntry> &entries, std::size_t from)
       auto chained = std::make_shared<Command>(sub_command->front());
       sub_command->pop();
 
-      if (*op == Operator::ExecuteOnSuccess)
+      apply_operator_to_command_tree(cmd, *op, chained);
+
+      std::queue<Command> new_extras;
+      while (!extras.empty())
       {
-        cmd.chain_on_success(chained);
-      }
-      else
-      {
-        cmd.chain_on_failure(chained);
+        Command extra = extras.front();
+        extras.pop();
+        apply_operator_to_command_tree(extra, *op, chained);
+        new_extras.push(std::move(extra));
       }
 
       result.push(std::move(cmd));
-      flush_extras();
+      while (!new_extras.empty())
+      {
+        result.push(new_extras.front());
+        new_extras.pop();
+      }
 
       while (!sub_command->empty())
       {

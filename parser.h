@@ -114,3 +114,14 @@ public:
 };
 
 std::expected<std::queue<Command>, SyntaxError> parse_commands(std::string_view command_line);
+
+struct RawEntry
+{
+  std::optional<std::vector<std::string>> args;
+  std::optional<std::vector<RawEntry>> group;
+
+  std::optional<Token> connector;
+
+  static RawEntry make_command(std::vector<std::string> a);
+  static RawEntry make_group(std::vector<RawEntry> g);
+};
